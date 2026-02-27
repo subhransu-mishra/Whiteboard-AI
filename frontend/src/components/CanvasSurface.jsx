@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import ReactFlow, {
   useNodesState,
   useEdgesState,
@@ -23,9 +23,34 @@ const nodeTypes = {
 let id = 0;
 const getId = () => `dndnode_${id++}`;
 
-const CanvasSurface = () => {
+const CanvasSurface = ({ projectData, onDataChange }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const isLoadingData = useRef(false);
+  const initialLoadComplete = useRef(false);
+
+  // Load project data when component mounts or projectData changes
+  useEffect(() => {
+    if (projectData && projectData.nodes && projectData.edges) {
+      isLoadingData.current = true;
+      setNodes(projectData.nodes);
+      setEdges(projectData.edges);
+
+      // Mark initial load as complete and reset loading flag
+      setTimeout(() => {
+        isLoadingData.current = false;
+        initialLoadComplete.current = true;
+      }, 50);
+    }
+  }, [projectData, setNodes, setEdges]);
+
+  // Notify parent component when data changes (only after user interactions)
+  useEffect(() => {
+    // Don't trigger onDataChange during initial load or when loading data from parent
+    if (onDataChange && initialLoadComplete.current && !isLoadingData.current) {
+      onDataChange(nodes, edges);
+    }
+  }, [nodes, edges, onDataChange]);
 
   const onConnect = useCallback(
     (params) => setEdges((eds) => addEdge(params, eds)),
@@ -43,6 +68,22 @@ const CanvasSurface = () => {
       );
     },
     [setNodes],
+  );
+
+  // Wrap onNodesChange to track user interactions
+  const handleNodesChange = useCallback(
+    (changes) => {
+      onNodesChange(changes);
+    },
+    [onNodesChange],
+  );
+
+  // Wrap onEdgesChange to track user interactions
+  const handleEdgesChange = useCallback(
+    (changes) => {
+      onEdgesChange(changes);
+    },
+    [onEdgesChange],
   );
 
   const onDrop = useCallback(
@@ -86,8 +127,8 @@ const CanvasSurface = () => {
           data: { ...node.data, onLabelChange: onNodeLabelChange },
         }))}
         edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
+        onNodesChange={handleNodesChange}
+        onEdgesChange={handleEdgesChange}
         onConnect={onConnect}
         onDrop={onDrop}
         onDragOver={onDragOver}

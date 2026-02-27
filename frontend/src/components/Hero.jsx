@@ -137,7 +137,7 @@ const Hero = () => {
           </div>
           <div className="flex flex-wrap items-center gap-4">
             <Link
-              to="/canvas"
+              to="/dashboard"
               className="rounded-full border border-white/15 bg-white text-neutral-950 px-6 py-3 text-sm font-semibold transition hover:-translate-y-0.5 hover:bg-white/90"
             >
               Get Started
