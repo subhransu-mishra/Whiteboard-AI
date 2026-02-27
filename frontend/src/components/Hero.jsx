@@ -21,8 +21,13 @@ const Hero = () => {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
             <div
-              className="h-9 w-9 rounded-lg border border-white/10 bg-white/5"
+              className="h-9 w-9 rounded-lg"
               aria-hidden="true"
+            />
+            <img
+              src="/logo.png"
+              alt="Sketch On Logo"
+              className="h-9 w-9 rounded-lg"
             />
             <div>
               <p className="text-xl font-semibold">Sketch On</p>
