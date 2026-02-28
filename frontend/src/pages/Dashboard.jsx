@@ -9,21 +9,52 @@ import {
   IoTrashOutline as TrashIcon,
   IoPencilOutline as PencilIcon,
 } from "react-icons/io5";
+import { useDiagramService } from "../services/diagramService";
+import { loadingManager } from "../services/apiUtils";
 
 const Dashboard = () => {
   const { isSignedIn, user } = useUser();
   const navigate = useNavigate();
+  const diagramService = useDiagramService();
   const [projects, setProjects] = useState([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Load projects from localStorage on component mount
+  // Load projects from API on component mount
   useEffect(() => {
-    const loadProjects = () => {
+    const loadProjects = async () => {
       if (isSignedIn && user) {
-        const userProjects = JSON.parse(
-          localStorage.getItem(`projects_${user.id}`) || "[]",
-        );
-        setProjects(userProjects);
+        try {
+          setIsLoading(true);
+          setError(null);
+          loadingManager.startLoading("dashboard-projects");
+
+          const response = await diagramService.getAllDiagrams();
+          const diagrams = response.data || [];
+
+          // Transform API data to match existing project structure
+          const transformedProjects = diagrams.map((diagram) => ({
+            id: diagram._id,
+            title: diagram.title,
+            createdAt: diagram.createdAt,
+            lastModified: diagram.updatedAt || diagram.lastModified,
+            data: {
+              nodes: diagram.nodes || [],
+              edges: diagram.edges || [],
+            },
+            nodeCount: (diagram.nodes || []).length,
+            edgeCount: (diagram.edges || []).length,
+          }));
+
+          setProjects(transformedProjects);
+        } catch (err) {
+          console.error("Error loading projects:", err);
+          setError(err.message || "Failed to load projects");
+        } finally {
+          setIsLoading(false);
+          loadingManager.stopLoading("dashboard-projects");
+        }
       }
     };
 
@@ -38,16 +69,23 @@ const Dashboard = () => {
     navigate(`/canvas?project=${projectId}`);
   };
 
-  const handleDeleteProject = (projectId) => {
-    const updatedProjects = projects.filter(
-      (project) => project.id !== projectId,
-    );
-    setProjects(updatedProjects);
-    localStorage.setItem(
-      `projects_${user.id}`,
-      JSON.stringify(updatedProjects),
-    );
-    setShowDeleteConfirm(null);
+  const handleDeleteProject = async (projectId) => {
+    try {
+      loadingManager.startLoading(`delete-project-${projectId}`);
+      await diagramService.deleteDiagram(projectId);
+
+      // Update local state
+      const updatedProjects = projects.filter(
+        (project) => project.id !== projectId,
+      );
+      setProjects(updatedProjects);
+      setShowDeleteConfirm(null);
+    } catch (err) {
+      console.error("Error deleting project:", err);
+      alert("Failed to delete project: " + (err.message || "Unknown error"));
+    } finally {
+      loadingManager.stopLoading(`delete-project-${projectId}`);
+    }
   };
 
   const formatDate = (dateString) => {
@@ -77,10 +115,7 @@ const Dashboard = () => {
       <header className="border-b border-white/5 bg-neutral-950/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
-            <div
-              className="h-9 w-12 rounded-lg "
-              aria-hidden="true"
-            />
+            <div className="h-9 w-12 rounded-lg " aria-hidden="true" />
             <img
               src="/logo.png"
               alt="Sketch On Logo"
@@ -131,7 +166,23 @@ const Dashboard = () => {
         </div>
 
         {/* Projects Grid */}
-        {projects.length > 0 ? (
+        {isLoading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+            <p className="text-white/60">Loading your projects...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <div className="text-red-400 mb-4">⚠️ Error loading projects</div>
+            <p className="text-white/60 mb-4">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        ) : projects.length > 0 ? (
           <div>
             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
               <DocumentIcon className="h-5 w-5" />

@@ -7,15 +7,20 @@ import {
 } from "react-icons/io5";
 import Sidebar from "./Sidebar";
 import CanvasSurface from "../../components/CanvasSurface";
+import { useDiagramService } from "../../services/diagramService";
+import { loadingManager } from "../../services/apiUtils";
 
 const CanvasPage = () => {
   const { isSignedIn, user } = useUser();
+  const diagramService = useDiagramService();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
   const [showTitleModal, setShowTitleModal] = useState(false);
   const [currentProject, setCurrentProject] = useState(null);
   const [projectData, setProjectData] = useState({ nodes: [], edges: [] });
+  const [isLoading, setIsLoading] = useState(false);
+  const [saveStatus, setSaveStatus] = useState("saved"); // 'saved', 'saving', 'unsaved'
   const isUpdatingFromParent = useRef(false);
 
   // Modal states
@@ -38,23 +43,41 @@ const CanvasPage = () => {
     }
   }, [isSignedIn, user, isNewProject, projectId, navigate]);
 
-  const loadExistingProject = (id) => {
-    const userProjects = JSON.parse(
-      localStorage.getItem(`projects_${user.id}`) || "[]",
-    );
-    const project = userProjects.find((p) => p.id === id);
+  const loadExistingProject = async (id) => {
+    try {
+      setIsLoading(true);
+      loadingManager.startLoading(`load-project-${id}`);
 
-    if (project) {
+      const response = await diagramService.getDiagram(id);
+      const diagram = response.data;
+
+      const project = {
+        id: diagram._id,
+        title: diagram.title,
+        createdAt: diagram.createdAt,
+        lastModified: diagram.updatedAt || diagram.lastModified,
+        data: {
+          nodes: diagram.nodes || [],
+          edges: diagram.edges || [],
+        },
+      };
+
       setCurrentProject(project);
       isUpdatingFromParent.current = true;
-      setProjectData(project.data || { nodes: [], edges: [] });
-      // Reset the flag after a short delay to allow the update to complete
+      setProjectData(project.data);
+      setSaveStatus("saved");
+
+      // Reset the flag after a short delay
       setTimeout(() => {
         isUpdatingFromParent.current = false;
       }, 100);
-    } else {
-      // Project not found, redirect to dashboard
+    } catch (error) {
+      console.error("Error loading project:", error);
+      alert("Failed to load project: " + (error.message || "Unknown error"));
       navigate("/dashboard");
+    } finally {
+      setIsLoading(false);
+      loadingManager.stopLoading(`load-project-${id}`);
     }
   };
 
@@ -88,36 +111,80 @@ const CanvasPage = () => {
     }
   };
 
-  const handleSaveProjectTitle = (projectTitle) => {
-    const newProject = {
-      id: `project_${Date.now()}`,
-      title: projectTitle,
-      createdAt: new Date().toISOString(),
-      lastModified: new Date().toISOString(),
-      data: { nodes: [], edges: [] },
-      nodeCount: 0,
-      edgeCount: 0,
-    };
+  const handleSaveProjectTitle = async (projectTitle) => {
+    try {
+      setIsLoading(true);
+      loadingManager.startLoading('create-project');
 
-    const userProjects = JSON.parse(
-      localStorage.getItem(`projects_${user.id}`) || "[]",
-    );
-    userProjects.push(newProject);
-    localStorage.setItem(`projects_${user.id}`, JSON.stringify(userProjects));
+      const response = await diagramService.createDiagram({
+        title: projectTitle,
+        nodes: [],
+        edges: []
+      });
 
-    setCurrentProject(newProject);
-    isUpdatingFromParent.current = true;
-    setProjectData(newProject.data);
-    setShowTitleModal(false);
+      const diagram = response.data;
+      const newProject = {
+        id: diagram._id,
+        title: diagram.title,
+        createdAt: diagram.createdAt,
+        lastModified: diagram.updatedAt || diagram.createdAt,
+        data: {
+          nodes: diagram.nodes || [],
+          edges: diagram.edges || []
+        }
+      };
 
-    // Reset the flag after a short delay
-    setTimeout(() => {
-      isUpdatingFromParent.current = false;
-    }, 100);
+      setCurrentProject(newProject);
+      isUpdatingFromParent.current = true;
+      setProjectData(newProject.data);
+      setShowTitleModal(false);
+      setSaveStatus('saved');
 
-    // Update URL without the 'new' parameter
-    const newUrl = `/canvas?project=${newProject.id}`;
-    window.history.replaceState({}, "", newUrl);
+      // Reset the flag after a short delay
+      setTimeout(() => {
+        isUpdatingFromParent.current = false;
+      }, 100);
+
+      // Update URL without the 'new' parameter
+      const newUrl = `/canvas?project=${newProject.id}`;
+      window.history.replaceState({}, "", newUrl);
+    } catch (error) {
+      console.error('Error creating project:', error);
+      setError('Failed to create project: ' + (error.message || 'Unknown error'));
+    } finally {
+      setIsLoading(false);
+      loadingManager.stopLoading('create-project');
+    }
+  };
+
+  // Auto-save with debouncing
+  const autoSaveTimeout = useRef(null);
+  
+  const saveProjectData = async (projectData) => {
+    if (!currentProject) return;
+    
+    try {
+      setSaveStatus('saving');
+      await diagramService.saveDiagram(currentProject.id, {
+        nodes: projectData.nodes,
+        edges: projectData.edges
+      });
+      setSaveStatus('saved');
+    } catch (error) {
+      console.error('Auto-save error:', error);
+      setSaveStatus('unsaved');
+    }
+  };
+
+  // Manual save function for save button
+  const handleManualSave = async () => {
+    if (!currentProject) return;
+    
+    if (autoSaveTimeout.current) {
+      clearTimeout(autoSaveTimeout.current);
+    }
+    
+    await saveProjectData(projectData);
   };
 
   const handleProjectDataChange = useCallback(
@@ -129,32 +196,24 @@ const CanvasPage = () => {
 
       const updatedData = { nodes, edges };
       setProjectData(updatedData);
+      setSaveStatus('unsaved');
 
-      // Save to localStorage
+      // Debounced auto-save to API
       if (currentProject && user) {
-        const userProjects = JSON.parse(
-          localStorage.getItem(`projects_${user.id}`) || "[]",
-        );
-        const projectIndex = userProjects.findIndex(
-          (p) => p.id === currentProject.id,
-        );
-
-        if (projectIndex !== -1) {
-          userProjects[projectIndex] = {
-            ...userProjects[projectIndex],
-            data: updatedData,
-            lastModified: new Date().toISOString(),
-            nodeCount: nodes.length,
-            edgeCount: edges.length,
-          };
-          localStorage.setItem(
-            `projects_${user.id}`,
-            JSON.stringify(userProjects),
-          );
-
-          // Update current project state
-          setCurrentProject(userProjects[projectIndex]);
+        if (autoSaveTimeout.current) {
+          clearTimeout(autoSaveTimeout.current);
         }
+        
+        autoSaveTimeout.current = setTimeout(() => {
+          saveProjectData(updatedData);
+        }, 2000); // Auto-save after 2 seconds of inactivity
+        
+        // Update the current project state immediately for UI
+        setCurrentProject(prev => ({
+          ...prev,
+          data: updatedData,
+          lastModified: new Date().toISOString()
+        }));
       }
     },
     [currentProject, user],
@@ -174,7 +233,11 @@ const CanvasPage = () => {
   return (
     <>
       <div className="h-screen bg-neutral-950 text-white flex">
-        <Sidebar currentProject={currentProject} />
+        <Sidebar 
+          currentProject={currentProject} 
+          saveStatus={saveStatus}
+          onManualSave={handleManualSave}
+        />
         <CanvasSurface
           projectData={projectData}
           onDataChange={handleProjectDataChange}
@@ -258,10 +321,11 @@ const CanvasPage = () => {
               </button>
               <button
                 onClick={handleModalSave}
-                disabled={!title.trim()}
-                className="px-6 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                disabled={!title.trim() || isLoading}
+                className="px-6 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
               >
-                Create Project
+                {isLoading && <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>}
+                {isLoading ? 'Creating...' : 'Create Project'}
               </button>
             </div>
           </div>
