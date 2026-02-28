@@ -1,37 +1,48 @@
 const { ClerkExpressWithAuth } = require("@clerk/clerk-sdk-node");
 
-// Development middleware to bypass auth for testing (remove in production)
-const bypassAuthForDev = (req, res, next) => {
-  // For development only - add a fake user ID
+
+
+// Production-ready authentication middleware
+const validateClerkUser = (req, res, next) => {
+  // Check if we have a secret key configured
+  if (
+    !process.env.CLERK_SECRET_KEY ||
+    process.env.CLERK_SECRET_KEY === "sk_live_YOUR_PRODUCTION_SECRET_KEY_HERE"
+  ) {
+    console.error("Clerk secret key not configured");
+    return res.status(500).json({
+      success: false,
+      message: "Authentication service not properly configured",
+    });
+  }
+
+  // Development bypass (only for non-production environments)
   if (
     process.env.NODE_ENV !== "production" &&
-    (!process.env.CLERK_SECRET_KEY ||
-      process.env.CLERK_SECRET_KEY === "sk_test_your_clerk_secret_key_here")
+    process.env.CLERK_SECRET_KEY.startsWith("sk_test_")
   ) {
     console.log("Using development auth bypass");
     req.auth = { userId: "dev-user-123" };
     req.clerkUserId = "dev-user-123";
-    next();
-  } else {
-    // Use real Clerk auth in production
-    const clerkAuth = ClerkExpressWithAuth({
-      secretKey: process.env.CLERK_SECRET_KEY,
-    });
-    clerkAuth(req, res, (err) => {
-      if (err) {
-        console.error("Clerk auth error:", err);
-        return res.status(401).json({
-          success: false,
-          message: "Authentication failed",
-        });
-      }
-      addUserToRequest(req, res, next);
-    });
+    return next();
   }
-};
 
-// Middleware to validate Clerk user authentication
-const validateClerkUser = bypassAuthForDev;
+  // Use Clerk authentication
+  const clerkAuth = ClerkExpressWithAuth({
+    secretKey: process.env.CLERK_SECRET_KEY,
+  });
+
+  clerkAuth(req, res, (err) => {
+    if (err) {
+      console.error("Clerk auth error:", err);
+      return res.status(401).json({
+        success: false,
+        message: "Authentication failed",
+      });
+    }
+    addUserToRequest(req, res, next);
+  });
+};
 
 // Additional middleware to add user ID to request
 const addUserToRequest = (req, res, next) => {

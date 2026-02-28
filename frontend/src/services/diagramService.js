@@ -2,7 +2,7 @@ import { useAuth } from "@clerk/clerk-react";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
-  "https://sketchon-backend.onrender.com/api";
+  "https://whiteboard-ai-a5pt.onrender.com/api";
 
 class DiagramService {
   constructor() {
@@ -18,6 +18,11 @@ class DiagramService {
   async getAllDiagrams() {
     try {
       const token = await this.getAuthToken();
+
+      if (!token) {
+        throw new Error("No authentication token available");
+      }
+
       const response = await fetch(`${API_BASE_URL}/diagrams`, {
         method: "GET",
         headers: {
@@ -25,6 +30,10 @@ class DiagramService {
           "Content-Type": "application/json",
         },
       });
+
+      if (response.status === 401) {
+        throw new Error("Unauthorized - Invalid or missing authentication");
+      }
 
       const data = await response.json();
       if (!response.ok) {
@@ -142,11 +151,22 @@ const diagramService = new DiagramService();
 
 // Hook to initialize the service with auth
 export const useDiagramService = () => {
-  const { getToken } = useAuth();
+  const { getToken, isSignedIn } = useAuth();
 
   // Initialize the service with the auth token getter
-  if (!diagramService.getAuthToken) {
-    diagramService.setAuthProvider(getToken);
+  if (!diagramService.getAuthToken && isSignedIn) {
+    diagramService.setAuthProvider(async () => {
+      try {
+        const token = await getToken();
+        if (!token) {
+          throw new Error("Failed to retrieve authentication token");
+        }
+        return token;
+      } catch (error) {
+        console.error("Error getting auth token:", error);
+        throw error;
+      }
+    });
   }
 
   return diagramService;

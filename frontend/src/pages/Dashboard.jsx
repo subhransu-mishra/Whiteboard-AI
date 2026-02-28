@@ -24,33 +24,50 @@ const Dashboard = () => {
   // Load projects from API on component mount
   useEffect(() => {
     const loadProjects = async () => {
-      if (isSignedIn && user) {
-        try {
-          setIsLoading(true);
-          setError(null);
-          loadingManager.startLoading("dashboard-projects");
+      if (!isSignedIn) {
+        console.log("User not signed in, redirecting...");
+        return;
+      }
+      
+      if (!user) {
+        console.log("User data not loaded yet, waiting...");
+        return;
+      }
 
-          const response = await diagramService.getAllDiagrams();
-          const diagrams = response.data || [];
+      try {
+        setIsLoading(true);
+        setError(null);
+        loadingManager.startLoading("dashboard-projects");
 
-          // Transform API data to match existing project structure
-          const transformedProjects = diagrams.map((diagram) => ({
-            id: diagram._id,
-            title: diagram.title,
-            createdAt: diagram.createdAt,
-            lastModified: diagram.updatedAt || diagram.lastModified,
-            data: {
-              nodes: diagram.nodes || [],
-              edges: diagram.edges || [],
-            },
-            nodeCount: (diagram.nodes || []).length,
-            edgeCount: (diagram.edges || []).length,
-          }));
+        const response = await diagramService.getAllDiagrams();
+        const diagrams = response.data || [];
 
-          setProjects(transformedProjects);
+        // Transform API data to match existing project structure
+        const transformedProjects = diagrams.map((diagram) => ({
+          id: diagram._id,
+          title: diagram.title,
+          createdAt: diagram.createdAt,
+          lastModified: diagram.updatedAt || diagram.lastModified,
+          data: {
+            nodes: diagram.nodes || [],
+            edges: diagram.edges || [],
+          },
+          nodeCount: (diagram.nodes || []).length,
+          edgeCount: (diagram.edges || []).length,
+        }));
+
+        setProjects(transformedProjects);
         } catch (err) {
           console.error("Error loading projects:", err);
-          setError(err.message || "Failed to load projects");
+          if (err.message?.includes("Unauthorized")) {
+            setError("Authentication failed. Please sign in again.");
+            // Consider redirecting to sign-in page
+            setTimeout(() => navigate("/"), 3000);
+          } else if (err.message?.includes("Failed to fetch")) {
+            setError("Unable to connect to server. Please check your internet connection.");
+          } else {
+            setError(err.message || "Failed to load projects");
+          }
         } finally {
           setIsLoading(false);
           loadingManager.stopLoading("dashboard-projects");
