@@ -204,12 +204,10 @@ const Hero = () => {
             >
               <Link
                 to="/dashboard"
-                className="group relative overflow-hidden rounded-full bg-blue-600 text-white px-8 py-4 text-sm font-semibold transition-all duration-300 hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-500/25"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-blue-600 text-white px-8 py-4 text-sm font-semibold transition-all duration-300 hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-500/25 focus:outline-none focus:ring-4 focus:ring-blue-500/20"
               >
-                <span className="relative z-10 flex items-center gap-2">
-                  Get Started
-                  <FiArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </span>
+                Get Started
+                <FiArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </Link>
             </motion.div>
             <motion.div
@@ -218,12 +216,10 @@ const Hero = () => {
             >
               <Link
                 to="/how-to-use"
-                className="group relative overflow-hidden rounded-full border-2 border-white/30 bg-white/10 text-white px-8 py-4 text-sm font-semibold transition-all duration-300 hover:border-white/50 hover:bg-white/20 backdrop-blur-sm"
+                className="inline-flex items-center justify-center gap-2 rounded-full border-2 border-white/30 bg-white/10 text-white px-8 py-4 text-sm font-semibold transition-all duration-300 hover:border-white/50 hover:bg-white/20 focus:outline-none focus:ring-4 focus:ring-white/20 backdrop-blur-sm"
               >
-                <span className="relative z-10 flex items-center gap-2">
-                  <FiPlay className="h-4 w-4" />
-                  See how it works
-                </span>
+                <FiPlay className="h-4 w-4" />
+                See how it works
               </Link>
             </motion.div>
           </motion.div>
