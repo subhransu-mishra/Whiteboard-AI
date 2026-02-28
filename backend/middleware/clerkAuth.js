@@ -4,8 +4,9 @@ const { ClerkExpressWithAuth } = require("@clerk/clerk-sdk-node");
 const bypassAuthForDev = (req, res, next) => {
   // For development only - add a fake user ID
   if (
-    !process.env.CLERK_SECRET_KEY ||
-    process.env.CLERK_SECRET_KEY === "sk_test_your_clerk_secret_key_here"
+    process.env.NODE_ENV !== "production" &&
+    (!process.env.CLERK_SECRET_KEY ||
+      process.env.CLERK_SECRET_KEY === "sk_test_your_clerk_secret_key_here")
   ) {
     console.log("Using development auth bypass");
     req.auth = { userId: "dev-user-123" };

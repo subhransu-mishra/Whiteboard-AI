@@ -1,6 +1,8 @@
 // API Configuration
 export const API_CONFIG = {
-  BASE_URL: import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api",
+  BASE_URL:
+    import.meta.env.VITE_API_BASE_URL ||
+    "https://sketchon-backend.onrender.com/api",
   TIMEOUT: 30000, // 30 seconds
 };
 
