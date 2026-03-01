@@ -28,7 +28,7 @@ const Dashboard = () => {
         console.log("User not signed in, redirecting...");
         return;
       }
-      
+
       if (!user) {
         console.log("User data not loaded yet, waiting...");
         return;
@@ -57,26 +57,27 @@ const Dashboard = () => {
         }));
 
         setProjects(transformedProjects);
-        } catch (err) {
-          console.error("Error loading projects:", err);
-          if (err.message?.includes("Unauthorized")) {
-            setError("Authentication failed. Please sign in again.");
-            // Consider redirecting to sign-in page
-            setTimeout(() => navigate("/"), 3000);
-          } else if (err.message?.includes("Failed to fetch")) {
-            setError("Unable to connect to server. Please check your internet connection.");
-          } else {
-            setError(err.message || "Failed to load projects");
-          }
-        } finally {
-          setIsLoading(false);
-          loadingManager.stopLoading("dashboard-projects");
+      } catch (err) {
+        console.error("Error loading projects:", err);
+        if (err.message?.includes("Unauthorized")) {
+          setError("Authentication failed. Please sign in again.");
+          // Consider redirecting to sign-in page
+          setTimeout(() => navigate("/"), 3000);
+        } else if (err.message?.includes("Failed to fetch")) {
+          setError(
+            "Unable to connect to server. Please check your internet connection.",
+          );
+        } else {
+          setError(err.message || "Failed to load projects");
         }
+      } finally {
+        setIsLoading(false);
+        loadingManager.stopLoading("dashboard-projects");
       }
     };
 
     loadProjects();
-  }, [isSignedIn, user]);
+  }, [isSignedIn, user, diagramService, navigate]);
 
   const handleNewProject = () => {
     navigate("/canvas?new=true");
