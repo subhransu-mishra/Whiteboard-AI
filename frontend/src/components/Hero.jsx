@@ -402,30 +402,30 @@ const Hero = () => {
                 transition={{ duration: 0.8, delay: 0.5 }}
                 viewport={{ once: true }}
               >
-                <p className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
                   <motion.div
                     className="h-1 w-1 rounded-full bg-blue-400"
                     animate={{ scale: [1, 1.5, 1] }}
                     transition={{ duration: 2, repeat: Infinity }}
                   />
                   Detects misalignment and inconsistent spacing automatically.
-                </p>
-                <p className="flex items-center gap-2">
+                </div>
+                <div className="flex items-center gap-2">
                   <motion.div
                     className="h-1 w-1 rounded-full bg-purple-400"
                     animate={{ scale: [1, 1.5, 1] }}
                     transition={{ duration: 2, repeat: Infinity, delay: 0.3 }}
                   />
                   Recommends hierarchy, labels, and smart grouping.
-                </p>
-                <p className="flex items-center gap-2">
+                </div>
+                <div className="flex items-center gap-2">
                   <motion.div
                     className="h-1 w-1 rounded-full bg-pink-400"
                     animate={{ scale: [1, 1.5, 1] }}
                     transition={{ duration: 2, repeat: Infinity, delay: 0.6 }}
                   />
                   Exports polished narratives without losing your intent.
-                </p>
+                </div>
               </motion.div>
             </div>
           </div>

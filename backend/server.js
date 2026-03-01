@@ -32,6 +32,8 @@ app.use(
       "http://localhost:3000",
       "https://sketchon.onrender.com",
       "https://whiteboard-ai-a5pt.onrender.com",
+      "https://sketchon.app",
+      "https://www.sketchon.app",
     ],
     credentials: true,
   }),
